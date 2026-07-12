@@ -1,0 +1,121 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Kubernetes Cluster Overview",
+    "tags": ["kubernetes", "infrastructure"],
+    "timezone": "utc",
+    "schemaVersion": 36,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Cluster CPU Usage",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(container_cpu_usage_seconds_total{namespace!=\"\"}[5m])) by (namespace)",
+            "legendFormat": "{{ namespace }}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Cluster Memory Usage",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(container_memory_usage_bytes{namespace!=\"\"}) by (namespace) / 1024 / 1024 / 1024",
+            "legendFormat": "{{ namespace }}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "decgbytes"
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Pod Count by Namespace",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "count(kube_pod_info) by (namespace)"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Node Status",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 12},
+        "targets": [
+          {
+            "expr": "kube_node_status_condition{condition=\"Ready\"}"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Network I/O",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
+        "targets": [
+          {
+            "expr": "sum(rate(container_network_receive_bytes_total[5m])) by (namespace) / 1024 / 1024",
+            "legendFormat": "Receive {{ namespace }}"
+          },
+          {
+            "expr": "sum(rate(container_network_transmit_bytes_total[5m])) by (namespace) / 1024 / 1024",
+            "legendFormat": "Transmit {{ namespace }}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "MBs"
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Disk I/O",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20},
+        "targets": [
+          {
+            "expr": "sum(rate(container_fs_reads_bytes_total[5m])) by (namespace) / 1024 / 1024",
+            "legendFormat": "Read {{ namespace }}"
+          }
+        ]
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "namespace",
+          "type": "query",
+          "query": "label_values(kube_namespace_labels, namespace)",
+          "multi": true,
+          "includeAll": true
+        },
+        {
+          "name": "node",
+          "type": "query",
+          "query": "label_values(kube_node_info, node)",
+          "multi": true,
+          "includeAll": true
+        }
+      ]
+    }
+  }
+}

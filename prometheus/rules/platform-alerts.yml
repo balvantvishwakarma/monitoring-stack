@@ -1,0 +1,99 @@
+groups:
+  - name: kubernetes-cluster
+    interval: 30s
+    rules:
+      - alert: KubernetesNodeNotReady
+        expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Kubernetes node {{ $labels.node }} is not ready"
+          description: "Node {{ $labels.node }} has been in NotReady state for more than 5 minutes."
+          runbook_url: "https://wiki.internal/runbooks/k8s-node-not-ready"
+
+      - alert: KubernetesPodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash looping"
+          description: "Container {{ $labels.container }} in pod {{ $labels.namespace }}/{{ $labels.pod }} restarted {{ $value }} times in 15 minutes."
+
+      - alert: KubernetesPodNotReady
+        expr: sum by (namespace, pod) (kube_pod_status_phase{phase!~"Running|Succeeded"}) > 0
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is not ready"
+          description: "Pod has been in non-running state for more than 10 minutes."
+
+      - alert: KubernetesHighMemoryUsage
+        expr: |
+          (
+            container_memory_usage_bytes{container!=""}
+            /
+            container_spec_memory_limit_bytes{container!=""}
+          ) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          team: applications
+        annotations:
+          summary: "High memory usage in {{ $labels.namespace }}/{{ $labels.pod }}"
+          description: "Container {{ $labels.container }} is using {{ $value | humanizePercentage }} of its memory limit."
+
+      - alert: KubernetesHighCPUUsage
+        expr: |
+          (
+            rate(container_cpu_usage_seconds_total{container!=""}[5m])
+            /
+            (container_spec_cpu_quota{container!=""} / container_spec_cpu_period{container!=""})
+          ) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          team: applications
+        annotations:
+          summary: "High CPU usage in {{ $labels.namespace }}/{{ $labels.pod }}"
+          description: "Container {{ $labels.container }} is using {{ $value | humanizePercentage }} of its CPU limit."
+
+      - alert: KubernetesPersistentVolumeFillingUp
+        expr: |
+          (
+            kubelet_volume_stats_available_bytes{namespace!=""}
+            /
+            kubelet_volume_stats_capacity_bytes{namespace!=""}
+          ) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Persistent volume filling up in {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }}"
+          description: "Volume is {{ $value | humanizePercentage }} full."
+
+      - alert: KubernetesCertificateExpiringSoon
+        expr: (certmanager_certificate_expiration_timestamp_seconds - time()) / 86400 < 30
+        for: 1h
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "TLS certificate {{ $labels.name }} expiring soon"
+          description: "Certificate expires in {{ $value | humanizeDuration }} days."
+
+      - alert: BlackboxProbeFailed
+        expr: probe_success == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Probe failed for {{ $labels.instance }}"
+          description: "Blackbox probe to {{ $labels.instance }} has been failing for 2 minutes."
